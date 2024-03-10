@@ -1,11 +1,24 @@
-use core::fmt;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::ast::{Identifier, LetStatement, Program, ReturnStatement, Statement};
+use crate::ast::{
+    Expression, ExpressionStatement, Identifier, IntegralLiteral, LetStatement, Program,
+    ReturnStatement, Statement,
+};
 use crate::lexer::{Lexer, Token, TokenType};
 
 mod tests;
+
+enum Precedence {
+    Lowest,
+    Equals,
+    LessGreater,
+    Sum,
+    Product,
+    Prefix,
+    Call,
+}
 
 #[derive(Debug)]
 struct Parser {
@@ -13,6 +26,9 @@ struct Parser {
     errors: Vec<String>,
     current_token: Option<Token>,
     peek_token: Option<Token>,
+    prefix_parse_fns: HashMap<TokenType, fn(&Parser) -> Option<Rc<RefCell<dyn Expression>>>>,
+    infix_parse_fns:
+        HashMap<TokenType, fn(Rc<RefCell<dyn Expression>>) -> Option<Rc<RefCell<dyn Expression>>>>,
 }
 
 impl Parser {
@@ -22,10 +38,18 @@ impl Parser {
             errors: Vec::new(),
             current_token: None,
             peek_token: None,
+            prefix_parse_fns: HashMap::new(),
+            infix_parse_fns: HashMap::new(),
         };
 
         parser.next_token();
         parser.next_token();
+
+        parser.register_prefix(TokenType::Ident(String::new()), Parser::parse_identifier);
+        parser.register_prefix(
+            TokenType::Int(String::new()),
+            Parser::parse_integral_literal,
+        );
 
         parser
     }
@@ -67,7 +91,7 @@ impl Parser {
         match self.current_token.as_ref().unwrap().token_type {
             TokenType::Let => self.parse_let_statement(),
             TokenType::Return => self.parse_return_statement(),
-            _ => None,
+            _ => self.parse_expression_statement(),
         }
     }
 
@@ -113,6 +137,48 @@ impl Parser {
         Some(Rc::new(RefCell::new(statement)))
     }
 
+    fn parse_expression_statement(&mut self) -> Option<Rc<RefCell<dyn Statement>>> {
+        let statement = ExpressionStatement {
+            token: self.current_token.as_ref().unwrap().clone(),
+            expression: self.parse_expression(Precedence::Lowest),
+        };
+
+        if self.peek_token_is(TokenType::Semicolon) {
+            self.next_token();
+        }
+
+        Some(Rc::new(RefCell::new(statement)))
+    }
+
+    fn parse_expression(&self, precedence: Precedence) -> Option<Rc<RefCell<dyn Expression>>> {
+        let prefix = self
+            .prefix_parse_fns
+            .get(&self.current_token.as_ref().unwrap().token_type);
+
+        if prefix.is_none() {
+            return None;
+        }
+
+        let left_expression = prefix.unwrap()(self);
+
+        left_expression
+    }
+
+    fn parse_identifier(&self) -> Option<Rc<RefCell<dyn Expression>>> {
+        Some(Rc::new(RefCell::new(Identifier {
+            token: self.current_token.as_ref().unwrap().clone(),
+            value: self.current_token.as_ref().unwrap().literal.clone(),
+        })))
+    }
+
+    fn parse_integral_literal(&self) -> Option<Rc<RefCell<dyn Expression>>> {
+        let token = self.current_token.as_ref()?;
+        Some(Rc::new(RefCell::new(IntegralLiteral {
+            token: token.clone(),
+            value: token.literal.parse::<i64>().unwrap_or(0),
+        })))
+    }
+
     fn current_token_is(&self, token_type: TokenType) -> bool {
         self.current_token.as_ref().unwrap().token_type == token_type
     }
@@ -142,5 +208,21 @@ impl Parser {
                 false
             }
         }
+    }
+
+    fn register_prefix(
+        &mut self,
+        token_type: TokenType,
+        func: fn(&Parser) -> Option<Rc<RefCell<dyn Expression>>>,
+    ) {
+        self.prefix_parse_fns.insert(token_type, func);
+    }
+
+    fn register_infix(
+        &mut self,
+        token_type: TokenType,
+        func: fn(Rc<RefCell<dyn Expression>>) -> Option<Rc<RefCell<dyn Expression>>>,
+    ) {
+        self.infix_parse_fns.insert(token_type, func);
     }
 }

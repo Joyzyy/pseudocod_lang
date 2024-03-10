@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 mod tests;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum TokenType {
     Illegal,
     Eof,
