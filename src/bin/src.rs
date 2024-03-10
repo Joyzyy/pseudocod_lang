@@ -1,15 +1,17 @@
-use lexer::lexer::{Lexer, TokenType};
+use library::lexer::{Lexer, Token, TokenType};
+use std::io::{self, Write};
 
-fn start() -> std::io::Result<Vec<TokenType>> {
+fn start() -> std::io::Result<Vec<Token>> {
+    print!(">> ");
+    io::stdout().flush()?;
     let mut input = String::new();
-    std::io::stdin().read_line(&mut input)?;
+    io::stdin().read_line(&mut input)?;
 
     let mut lexer = Lexer::new(input);
-
-    let mut vec: Vec<TokenType> = vec![];
+    let mut vec: Vec<Token> = vec![];
     loop {
         let token = lexer.next_token();
-        if token == TokenType::Eof() {
+        if token.token_type == TokenType::Eof {
             break;
         }
         vec.push(token);
@@ -19,9 +21,7 @@ fn start() -> std::io::Result<Vec<TokenType>> {
 }
 
 fn main() {
-    let prompt: String = String::from(">> ");
     loop {
-        print!("{}", prompt);
         match start() {
             Ok(tokens) => {
                 for token in tokens {
