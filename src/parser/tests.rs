@@ -1,32 +1,41 @@
-use std::ops::Deref;
+use std::{
+    borrow::Borrow,
+    cell::{Ref, RefCell},
+    ops::Deref,
+    rc::Rc,
+};
 
-use crate::{ast::Program, lexer::Lexer};
+use crate::{
+    ast::{LetStatement, Program, Statement},
+    lexer::Lexer,
+};
 
 use super::Parser;
 
 #[test]
 fn test_one() {
     let input = r#"
-    let x = 5;
-    let y = 10;
-    let foobar = 838383;
+    let x 5;
+    let = 10;
+    let 838383;
   "#
     .to_string();
 
-    let mut lexer = Lexer::new(input);
-    let mut p = Parser::new(Box::new(lexer));
-    let mut program = p.parse_program();
+    let lexer = Lexer::new(input);
+    let mut p = Parser::new(lexer);
+    let program = p.parse_program().unwrap();
+    let errors = p.errors();
+    dbg!(errors);
 
-    if program.is_none() {
-        panic!("parse_program() is none");
-    }
-    if program.as_ref().unwrap().as_ref().statements.len() != 3 {
-        panic!("program.statements does not contain 3 statements");
-    }
+    assert_eq!(program.statements.len(), 3);
 
-    let tests = vec!["x", "y", "foobar'"];
-    for (i, _testt) in tests.iter().enumerate() {
-        let stmt = program.as_ref().clone().unwrap().statements[i].as_ref();
-        println!("{:?}", stmt.statement_node());
+    // println!("{:?}", program.statements.len());
+
+    let tests = vec!["x".to_string(), "y".to_string(), "foobar".to_string()];
+    for (i, tt) in tests.iter().enumerate() {
+        let stmt = program.statements.get(i).unwrap();
+        let stmt = stmt.as_ref().borrow();
+        let let_stmt = stmt.as_any().downcast_ref::<LetStatement>().unwrap();
+        assert_eq!(&let_stmt.name.as_ref().unwrap().value, tt);
     }
 }

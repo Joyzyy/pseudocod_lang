@@ -47,6 +47,7 @@ pub struct Token {
     pub literal: String,
 }
 
+#[derive(Debug)]
 pub struct Lexer {
     input: String,
     position: usize,
@@ -95,7 +96,6 @@ impl Lexer {
             self.ch = self.input.chars().nth(self.read_position).unwrap();
         }
         self.position = self.read_position;
-        println!("reading ch: {}", self.ch);
         self.read_position += 1;
     }
 
@@ -165,7 +165,6 @@ impl Lexer {
                 _ => Token::new(TokenType::Illegal, self.ch),
             },
         };
-        println!("token: {:?}", token);
         self.read_char();
         token
     }
