@@ -2,7 +2,7 @@ use core::fmt;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::ast::{Identifier, LetStatement, Program, Statement};
+use crate::ast::{Identifier, LetStatement, Program, ReturnStatement, Statement};
 use crate::lexer::{Lexer, Token, TokenType};
 
 mod tests;
@@ -66,6 +66,7 @@ impl Parser {
     fn parse_statement(&mut self) -> Option<Rc<RefCell<dyn Statement>>> {
         match self.current_token.as_ref().unwrap().token_type {
             TokenType::Let => self.parse_let_statement(),
+            TokenType::Return => self.parse_return_statement(),
             _ => None,
         }
     }
@@ -89,6 +90,21 @@ impl Parser {
         if !self.expect_peek(TokenType::Assign) {
             return None;
         }
+
+        while !self.current_token_is(TokenType::Semicolon) {
+            self.next_token();
+        }
+
+        Some(Rc::new(RefCell::new(statement)))
+    }
+
+    fn parse_return_statement(&mut self) -> Option<Rc<RefCell<dyn Statement>>> {
+        let mut statement = ReturnStatement {
+            token: self.current_token.as_ref().unwrap().clone(),
+            return_value: None,
+        };
+
+        self.next_token();
 
         while !self.current_token_is(TokenType::Semicolon) {
             self.next_token();

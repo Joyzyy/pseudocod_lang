@@ -33,6 +33,12 @@ pub struct LetStatement {
     pub value: Option<Rc<RefCell<dyn Expression>>>,
 }
 
+#[derive(Debug)]
+pub struct ReturnStatement {
+    pub token: lexer::Token,
+    pub return_value: Option<Rc<RefCell<dyn Expression>>>,
+}
+
 impl Node for Program {
     fn token_literal(&self) -> Option<String> {
         self.statements
@@ -59,6 +65,20 @@ impl Node for LetStatement {
 }
 
 impl Statement for LetStatement {
+    fn statement_node(&self) {}
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+impl Node for ReturnStatement {
+    fn token_literal(&self) -> Option<String> {
+        Some(self.token.literal.clone())
+    }
+}
+
+impl Statement for ReturnStatement {
     fn statement_node(&self) {}
 
     fn as_any(&self) -> &dyn std::any::Any {
